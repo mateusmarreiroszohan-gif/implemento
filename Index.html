@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Integração de IA — Moral Tattoo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Fonts from Google Fonts CDN. No other external libraries — HTML/CSS/JS puro. -->
+<style>
+  :root{
+    --bg-0:#080B12; --bg-1:#0E1320; --bg-2:#141A2B; --line:#232B41;
+    --text-0:#EDEFF6; --text-1:#AEB6CC; --text-2:#6E7691;
+    --blue:#5B8CFF; --purple:#9B7CFF; --cyan:#3FD9E8; --amber:#F0B84E; --green:#4ADE9A; --red:#FF6B7A;
+    --grad-1: linear-gradient(135deg, var(--blue), var(--purple));
+    --grad-2: linear-gradient(135deg, var(--cyan), var(--blue));
+    --font-display:'Space Grotesk', sans-serif;
+    --font-body:'Inter', sans-serif;
+    --font-mono:'JetBrains Mono', monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;}
+  body{font-family:var(--font-body); background:var(--bg-0); color:var(--text-0); overflow:hidden; position:relative;}
+  body::before{content:''; position:fixed; inset:0;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(91,140,255,0.10), transparent 45%),
+      radial-gradient(circle at 85% 85%, rgba(155,124,255,0.10), transparent 45%);
+    pointer-events:none; z-index:0;}
+  body::after{content:''; position:fixed; inset:0;
+    background-image:linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size:44px 44px; pointer-events:none; z-index:0;}
+  ::selection{background:var(--purple); color:#fff;}
+
+  .deck{position:relative; z-index:1; height:100vh; width:100vw; display:flex; flex-direction:column;}
+  .topbar{display:flex; align-items:center; justify-content:space-between; padding:16px 28px; border-bottom:1px solid var(--line); background:rgba(8,11,18,0.6); backdrop-filter:blur(10px); z-index:20;}
+  .brand{display:flex; align-items:center; gap:10px; font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:var(--text-2); text-transform:uppercase;}
+  .brand .dot{width:7px;height:7px;border-radius:50%;background:var(--grad-2); box-shadow:0 0 10px var(--cyan);}
+  .topbar-actions{display:flex; align-items:center; gap:18px;}
+  .slide-counter{font-family:var(--font-mono); font-size:13px; color:var(--text-1);}
+  .slide-counter b{color:var(--text-0); font-weight:600;}
+  .menu-btn{background:var(--bg-2); border:1px solid var(--line); color:var(--text-1); font-family:var(--font-mono); font-size:12px; padding:8px 14px; border-radius:8px; cursor:pointer; transition:all .2s ease;}
+  .menu-btn:hover{border-color:var(--blue); color:var(--text-0); background:var(--bg-1);}
+  .progress-track{height:2px; background:var(--line); position:relative; z-index:20;}
+  .progress-fill{height:100%; background:var(--grad-1); width:0%; transition:width .45s cubic-bezier(.65,0,.35,1);}
+  .stage{flex:1; position:relative; overflow:hidden;}
+  .slide{position:absolute; inset:0; display:flex; flex-direction:column; padding:50px 7.5vw 36px; opacity:0; visibility:hidden; transform:translateX(40px) scale(0.985); transition:opacity .5s cubic-bezier(.65,0,.35,1), transform .5s cubic-bezier(.65,0,.35,1), visibility .5s; overflow-y:auto;}
+  .slide.active{opacity:1; visibility:visible; transform:translateX(0) scale(1); z-index:5;}
+  .slide.prev{transform:translateX(-40px) scale(0.985); opacity:0;}
+  .slide::-webkit-scrollbar{width:6px;}
+  .slide::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px;}
+
+  .eyebrow{font-family:var(--font-mono); font-size:12px; letter-spacing:0.14em; color:var(--cyan); text-transform:uppercase; margin-bottom:12px; display:flex; align-items:center; gap:10px;}
+  .eyebrow::before{content:''; width:22px; height:1px; background:var(--cyan);}
+  h1.title{font-family:var(--font-display); font-weight:600; font-size:clamp(24px, 2.7vw, 38px); line-height:1.15; letter-spacing:-0.01em; margin-bottom:8px;}
+  .subtitle{font-size:clamp(13px,1.05vw,16px); color:var(--text-1); max-width:800px; line-height:1.55; margin-bottom:22px;}
+  .slide-body{flex:1; display:flex; flex-direction:column; justify-content:center; min-height:0;}
+
+  .tag{display:inline-flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:10px; letter-spacing:0.03em; padding:3px 9px; border-radius:20px; border:1px solid transparent; white-space:nowrap; font-weight:500;}
+  .tag-verificado{background:rgba(74,222,154,0.1); color:var(--green); border-color:rgba(74,222,154,0.3);}
+  .tag-fornecedor{background:rgba(91,140,255,0.1); color:var(--blue); border-color:rgba(91,140,255,0.3);}
+  .tag-analise{background:rgba(155,124,255,0.1); color:var(--purple); border-color:rgba(155,124,255,0.3);}
+  .tag-confirmar{background:rgba(240,184,78,0.1); color:var(--amber); border-color:rgba(240,184,78,0.35);}
+
+  .grid{display:grid; gap:14px;}
+  .card{background:linear-gradient(180deg, var(--bg-2), var(--bg-1)); border:1px solid var(--line); border-radius:14px; padding:18px 20px; transition:border-color .2s ease;}
+  .card:hover{border-color:rgba(91,140,255,0.35);}
+  .card h3{font-family:var(--font-display); font-size:15.5px; font-weight:600; margin-bottom:5px;}
+  .card p{font-size:13px; color:var(--text-1); line-height:1.5;}
+  .card .kicker{font-family:var(--font-mono); font-size:10px; color:var(--text-2); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:7px;}
+  .card ul{margin-top:8px; padding-left:0; list-style:none;}
+  .card ul li{font-size:12.5px; color:var(--text-1); padding:4px 0 4px 16px; position:relative; line-height:1.5;}
+  .card ul li::before{content:'—'; position:absolute; left:0; color:var(--text-2);}
+
+  .flow{display:flex; align-items:stretch; gap:0; flex-wrap:wrap; margin:16px 0;}
+  .flow-step{display:flex; flex-direction:column; align-items:center; text-align:center; padding:14px 14px; min-width:104px; flex:1;}
+  .flow-step .icon{width:40px;height:40px;border-radius:11px; display:flex;align-items:center;justify-content:center; background:var(--bg-2); border:1px solid var(--line); margin-bottom:8px; font-family:var(--font-mono); font-size:13px; color:var(--cyan);}
+  .flow-step .label{font-size:11.5px; color:var(--text-1); font-weight:500; line-height:1.4;}
+  .flow-arrow{display:flex; align-items:center; justify-content:center; color:var(--text-2); font-size:17px; min-width:24px;}
+  .flow-vertical{display:flex; flex-direction:column; gap:0; margin:14px 0;}
+  .flow-vertical .flow-step{flex-direction:row; text-align:left; align-items:center; min-width:0; padding:8px 4px;}
+  .flow-vertical .flow-step .icon{margin-bottom:0; margin-right:12px; flex-shrink:0;}
+  .flow-vertical .flow-arrow{transform:rotate(90deg); min-height:12px; margin-left:20px;}
+
+  table.dtable{width:100%; border-collapse:collapse; font-size:12.5px;}
+  table.dtable th{font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-2); text-align:left; padding:9px 12px; border-bottom:1px solid var(--line);}
+  table.dtable td{padding:11px 12px; border-bottom:1px solid var(--line); color:var(--text-1); vertical-align:top;}
+  table.dtable tr:last-child td{border-bottom:none;}
+  table.dtable td.strong{color:var(--text-0); font-weight:600; font-family:var(--font-mono);}
+  table.dtable tr.total td{color:var(--text-0); font-weight:700; background:rgba(91,140,255,0.06);}
+  .table-wrap{border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--bg-1);}
+
+  .scenario-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+  .scenario{border:1px solid var(--line); border-radius:14px; padding:20px; background:var(--bg-1); display:flex; flex-direction:column; gap:10px;}
+  .scenario.reco{border-color:rgba(63,217,232,0.4); background:rgba(63,217,232,0.05);}
+  .scenario .name{font-family:var(--font-display); font-weight:600; font-size:15px;}
+  .scenario .row{display:flex; justify-content:space-between; font-size:12px; color:var(--text-1); border-top:1px solid var(--line); padding-top:8px;}
+  .scenario .row b{color:var(--text-0); font-family:var(--font-mono); font-weight:600;}
+
+  .pull-quote{font-family:var(--font-display); font-weight:500; font-size:clamp(16px,1.4vw,21px); color:var(--text-0); border-left:2px solid var(--purple); padding-left:18px; max-width:680px; line-height:1.45;}
+  .caption{font-size:11.5px; color:var(--text-2); margin-top:12px; line-height:1.5;}
+
+  .cover{justify-content:center; align-items:flex-start;}
+  .cover .kicker-row{display:flex; gap:10px; align-items:center; margin-bottom:24px; flex-wrap:wrap;}
+  .cover .badge-pill{font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-2); border:1px solid var(--line); padding:6px 12px; border-radius:20px;}
+  .cover h1{font-family:var(--font-display); font-weight:700; font-size:clamp(32px,4.6vw,60px); line-height:1.06; letter-spacing:-0.02em;
+    background:linear-gradient(135deg,#fff 30%, var(--cyan) 75%, var(--purple)); -webkit-background-clip:text; background-clip:text; color:transparent; margin-bottom:16px; max-width:900px;}
+  .cover .sub{font-size:clamp(14px,1.15vw,18px); color:var(--text-1); max-width:620px; line-height:1.6; margin-bottom:30px;}
+  .cover .meta-row{display:flex; gap:26px; margin-top:34px; flex-wrap:wrap;}
+  .cover .meta-item .k{font-family:var(--font-mono); font-size:10px; color:var(--text-2); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px;}
+  .cover .meta-item .v{font-size:13px; color:var(--text-1);}
+
+  .navbar{display:flex; align-items:center; justify-content:space-between; padding:16px 28px; border-top:1px solid var(--line); background:rgba(8,11,18,0.6); backdrop-filter:blur(10px); z-index:20;}
+  .nav-btn{display:flex; align-items:center; gap:8px; background:var(--bg-2); border:1px solid var(--line); color:var(--text-0); font-size:13px; font-weight:500; padding:9px 16px; border-radius:9px; cursor:pointer; transition:all .2s ease;}
+  .nav-btn:hover:not(:disabled){border-color:var(--blue); background:var(--bg-1); transform:translateY(-1px);}
+  .nav-btn:disabled{opacity:0.3; cursor:not-allowed;}
+  .nav-dots{display:flex; gap:6px; align-items:center;}
+  .nav-dot{width:6px; height:6px; border-radius:50%; background:var(--line); cursor:pointer; transition:all .25s ease;}
+  .nav-dot.active{background:var(--cyan); width:20px; border-radius:3px;}
+  .kbd-hint{font-family:var(--font-mono); font-size:10.5px; color:var(--text-2); display:flex; align-items:center; gap:6px;}
+  .kbd-hint kbd{border:1px solid var(--line); border-radius:4px; padding:1px 6px; background:var(--bg-2);}
+
+  .side-menu{position:fixed; top:0; right:-340px; width:320px; height:100vh; background:var(--bg-1); border-left:1px solid var(--line); z-index:50; transition:right .35s cubic-bezier(.65,0,.35,1); padding:26px 20px; overflow-y:auto;}
+  .side-menu.open{right:0;}
+  .side-menu h4{font-family:var(--font-mono); font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-2); margin-bottom:16px;}
+  .menu-item{display:flex; align-items:center; gap:12px; padding:9px 10px; border-radius:8px; cursor:pointer; transition:background .2s ease;}
+  .menu-item:hover{background:var(--bg-2);}
+  .menu-item.active{background:rgba(91,140,255,0.1);}
+  .menu-item .num{font-family:var(--font-mono); font-size:11px; color:var(--text-2); width:22px;}
+  .menu-item .txt{font-size:12.5px; color:var(--text-1);}
+  .menu-item.active .txt{color:var(--text-0); font-weight:500;}
+  .menu-overlay{position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:40; opacity:0; visibility:hidden; transition:opacity .3s ease, visibility .3s;}
+  .menu-overlay.open{opacity:1; visibility:visible;}
+
+  .two-col{display:grid; grid-template-columns:1.1fr 1fr; gap:20px;}
+  .arch-diagram{border:1px solid var(--line); border-radius:14px; padding:22px; background:var(--bg-1);}
+  .arch-title{font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-2); margin-bottom:12px;}
+  .arch-layer{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; justify-content:center;}
+  .arch-chip{font-family:var(--font-mono); font-size:11px; padding:6px 12px; border-radius:8px; background:var(--bg-2); border:1px solid var(--line); color:var(--text-1);}
+  .arch-chip.hi{border-color:rgba(63,217,232,0.4); color:var(--cyan);}
+  .arch-connector{text-align:center; color:var(--text-2); font-size:14px; margin:2px 0;}
+
+  @media (max-width:900px){
+    .slide{padding:30px 6vw 22px;}
+    .two-col{grid-template-columns:1fr;}
+    .scenario-grid{grid-template-columns:1fr;}
+    .flow{flex-direction:column;}
+    .flow-arrow{transform:rotate(90deg); min-width:0; min-height:16px;}
+    table.dtable{font-size:11.5px;}
+    .cover h1{font-size:clamp(28px,7.5vw,42px);}
+  }
+  @media (max-width:600px){
+    .topbar{padding:12px 16px;} .navbar{padding:12px 16px;} .kbd-hint{display:none;}
+    table.dtable th, table.dtable td{padding:8px 8px;}
+  }
+  @media (prefers-reduced-motion: reduce){ .slide, .progress-fill, .nav-dot, .side-menu{transition:none !important;} }
+  :focus-visible{outline:2px solid var(--cyan); outline-offset:2px;}
+</style>
+</head>
+<body>
+
+<div class="deck">
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span> Integração de IA — Moral Tattoo</div>
+    <div class="topbar-actions">
+      <span class="slide-counter">Slide <b id="curNum">1</b> de <b id="totalNum">12</b></span>
+      <button class="menu-btn" id="menuToggle">☰ Índice</button>
+    </div>
+  </div>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+  <div class="stage" id="stage">
+
+    <!-- 1 CAPA -->
+    <section class="slide cover" data-title="Capa">
+      <div class="kicker-row">
+        <span class="badge-pill">Proposta de implantação</span>
+        <span class="badge-pill">Baseado no Guia de Análise das IAs</span>
+      </div>
+      <h1>Integração de Inteligência Artificial — Moral Tattoo</h1>
+      <p class="sub">Automatização do atendimento, qualificação de clientes e integração operacional.</p>
+      <div class="meta-row">
+        <div class="meta-item"><div class="k">Solução recomendada</div><div class="v">Zaia — plataforma de atendimento com IA</div></div>
+        <div class="meta-item"><div class="k">Baseado em</div><div class="v">Guia de análise das IAs e ferramentas</div></div>
+        <div class="meta-item"><div class="k">Preparado para</div><div class="v">Moral Tattoo · Teresina, PI</div></div>
+      </div>
+    </section>
+
+    <!-- 2 O PROBLEMA ATUAL -->
+    <section class="slide" data-title="O problema atual">
+      <div class="eyebrow">Diagnóstico</div>
+      <h1 class="title">O problema atual não é tecnológico — é operacional</h1>
+      <p class="subtitle">A equipe é pequena e o volume de perguntas repetitivas consome tempo que deveria ir para tatuar e vender. O objetivo não é "colocar um chatbot" — é criar uma jornada de atendimento mais eficiente.</p>
+      <div class="slide-body">
+        <div class="grid" style="grid-template-columns:repeat(2,1fr);">
+          <div class="card"><h3>Excesso de perguntas repetitivas</h3><p>Dúvidas sobre estilo, tamanho, local e processo se repetem a cada novo contato, ocupando tempo da equipe de vendas/atendimento.</p></div>
+          <div class="card"><h3>Demora fora do horário comercial</h3><p>Clientes que chegam fora do expediente esperam até o próximo atendimento humano disponível.</p></div>
+          <div class="card"><h3>Briefing e referências desorganizados</h3><p>Imagens de referência e informações do cliente chegam de forma dispersa, sem estrutura antes de chegar ao tatuador.</p></div>
+          <div class="card"><h3>Encaminhamento sem critério</h3><p>Sem uma etapa de qualificação, todo contato chega ao humano no mesmo nível de prontidão — mesmo quem "ainda não sabe o que quer".</p></div>
+        </div>
+        <p class="pull-quote" style="margin-top:20px;">A meta é permitir que o cliente resolva sozinho a maior parte do que precisa, antes de chegar a um humano — sem perder a qualidade do atendimento que o estúdio já entrega.</p>
+      </div>
+    </section>
+
+    <!-- 3 SOLUÇÃO PROPOSTA -->
+    <section class="slide" data-title="Solução proposta">
+      <div class="eyebrow">Solução</div>
+      <h1 class="title">Zaia como núcleo da solução</h1>
+      <p class="subtitle">Um agente de IA configurado para conduzir o cliente do primeiro contato até a transferência qualificada para um humano.</p>
+      <div class="slide-body">
+        <div class="flow-vertical">
+          <div class="flow-step"><div class="icon">1</div><div class="label"><b>Cliente</b> chega pelo link na bio, WhatsApp ou QR code no estúdio</div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="icon">2</div><div class="label"><b>WhatsApp / Instagram / Site</b> — canal de entrada</div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="icon">3</div><div class="label"><b>IA (Zaia)</b> conversa, tira dúvidas sobre estilos, preços e processo</div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="icon">4</div><div class="label"><b>Briefing</b> — coleta local do corpo, tamanho, estilo e orçamento em linguagem natural</div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="icon">5</div><div class="label"><b>Referências</b> — cliente envia fotos direto no chat</div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="icon">6</div><div class="label"><b>Qualificação</b> — a IA organiza a informação e sinaliza o tatuador certo</div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="icon">7</div><div class="label"><b>Agendamento / próximo passo</b> — estimativa inicial e verificação de disponibilidade</div></div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step"><div class="icon">8</div><div class="label"><b>Atendimento humano</b> — transferência com todo o histórico já coletado</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 ARQUITETURA -->
+    <section class="slide" data-title="Como a integração funcionará">
+      <div class="eyebrow">Arquitetura</div>
+      <h1 class="title">Como a integração funcionará</h1>
+      <p class="subtitle">Visão geral de quais sistemas conversam entre si.</p>
+      <div class="slide-body">
+        <div class="arch-diagram">
+          <div class="arch-title">Camada de entrada</div>
+          <div class="arch-layer">
+            <div class="arch-chip">WhatsApp</div><div class="arch-chip">Instagram</div><div class="arch-chip">Site / link de atendimento</div>
+          </div>
+          <div class="arch-connector">↓</div>
+          <div class="arch-title">Núcleo da solução</div>
+          <div class="arch-layer">
+            <div class="arch-chip hi">Zaia (agente configurado)</div>
+          </div>
+          <div class="arch-connector">↓</div>
+          <div class="arch-title">Camada de inteligência e dados</div>
+          <div class="arch-layer">
+            <div class="arch-chip">IA / modelo de linguagem</div><div class="arch-chip">Base de conhecimento</div>
+          </div>
+          <div class="arch-connector">↓</div>
+          <div class="arch-title">Camada de automação e operação</div>
+          <div class="arch-layer">
+            <div class="arch-chip">Automação (Make / N8N)</div><div class="arch-chip">Agenda</div><div class="arch-chip">CRM / armazenamento de dados</div>
+          </div>
+          <div class="arch-connector">↓</div>
+          <div class="arch-title">Camada humana</div>
+          <div class="arch-layer">
+            <div class="arch-chip hi">Atendimento humano</div>
+          </div>
+        </div>
+        <p class="caption">A Zaia concentra a conversa, a IA e o acesso à base de conhecimento. Agenda e CRM se conectam por automação (Make/N8N), não nativamente — esta é a única camada que exige configuração técnica adicional.</p>
+      </div>
+    </section>
+
+    <!-- 5 FERRAMENTAS -->
+    <section class="slide" data-title="Ferramentas utilizadas">
+      <div class="eyebrow">Composição da solução</div>
+      <h1 class="title">Ferramentas utilizadas</h1>
+      <p class="subtitle">Apenas o necessário para a jornada descrita — nenhuma ferramenta extra para inflar a arquitetura.</p>
+      <div class="slide-body">
+        <div class="table-wrap">
+          <table class="dtable">
+            <tr><th>Ferramenta</th><th>Função</th><th>Por que será utilizada</th></tr>
+            <tr><td class="strong">Zaia</td><td>Motor de atendimento por IA — criação e gestão do agente</td><td>Plataforma central: reúne canais, IA e automação em um único produto no-code, operável pela equipe de vendas.</td></tr>
+            <tr><td class="strong">WhatsApp Business</td><td>Canal oficial de mensagens</td><td>Canal onde a maior parte dos clientes já está; integrado nativamente ao plano da Zaia.</td></tr>
+            <tr><td class="strong">Instagram</td><td>Canal de atendimento via direct</td><td>Incluído no mesmo plano da Zaia, sem custo adicional de canal.</td></tr>
+            <tr><td class="strong">Site / link de atendimento</td><td>Ponto de entrada além das redes sociais</td><td>Permite QR code no estúdio e link fixo na bio.</td></tr>
+            <tr><td class="strong">Make ou N8N</td><td>Automação entre a Zaia e a agenda/CRM</td><td>Necessário para a etapa de agendamento — integração declarada como "no-code/integração", não nativa.</td></tr>
+            <tr><td class="strong">Agenda (Google Calendar ou equivalente)</td><td>Verificação e registro de disponibilidade</td><td>Suporta a etapa de agendamento do fluxo.</td></tr>
+            <tr><td class="strong">CRM / armazenamento de histórico</td><td>Histórico do cliente</td><td>Evita repetir perguntas na transferência para o humano — <span class="tag tag-confirmar">a confirmar</span> qual ferramenta usar nesta fase inicial.</td></tr>
+            <tr><td class="strong">Modelo de IA (via Zaia)</td><td>Motor de linguagem que gera as respostas</td><td>Incluído no plano — acesso a múltiplos modelos por consumo de créditos.</td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 INFRAESTRUTURA -->
+    <section class="slide" data-title="Servidores e infraestrutura">
+      <div class="eyebrow">Infraestrutura</div>
+      <h1 class="title">Servidores e infraestrutura</h1>
+      <p class="subtitle">A Zaia é uma plataforma gerenciada — a maior parte da infraestrutura já está incluída no plano.</p>
+      <div class="slide-body">
+        <div class="two-col">
+          <div class="card">
+            <div class="kicker"><span class="tag tag-verificado">Incluído na plataforma</span></div>
+            <ul>
+              <li>Hospedagem do agente de IA</li>
+              <li>Modelo de linguagem (IA) e processamento das conversas</li>
+              <li>Base de conhecimento (até 4 milhões de caracteres)</li>
+              <li>Canais WhatsApp + Instagram + site no mesmo plano</li>
+              <li>API nativa para integrações</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="kicker"><span class="tag tag-confirmar">Adicional necessária / a confirmar</span></div>
+            <ul>
+              <li>Automação (Make/N8N) — camada gratuita limitada; plano pago conforme volume</li>
+              <li>Domínio/site institucional — já existente; sem custo adicional identificado</li>
+              <li>Certificado HTTPS — normalmente incluído na hospedagem do site já existente</li>
+              <li>Backups e monitoramento — não documentados publicamente pela Zaia; necessita validação comercial</li>
+              <li>Servidor dedicado / VPS — <b style="color:var(--text-0)">não é necessário</b> nesta fase, pois a Zaia já hospeda o agente</li>
+            </ul>
+          </div>
+        </div>
+        <p class="caption">Não há, neste momento, necessidade de servidor próprio: essa camada só entraria em jogo se, no futuro, a Moral Tattoo optasse por uma solução construída sob medida (ex.: via API da OpenAI).</p>
+      </div>
+    </section>
+
+    <!-- 7 INTEGRAÇÕES -->
+    <section class="slide" data-title="Integrações">
+      <div class="eyebrow">Fluxo de dados</div>
+      <h1 class="title">Integrações necessárias</h1>
+      <p class="subtitle">Cada etapa da jornada, do primeiro contato ao acompanhamento posterior.</p>
+      <div class="slide-body">
+        <div class="flow">
+          <div class="flow-step"><div class="icon">WA</div><div class="label">WhatsApp</div></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><div class="icon">◆</div><div class="label">Zaia</div></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><div class="icon">⚙</div><div class="label">Automação</div></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><div class="icon">▤</div><div class="label">Agenda / CRM</div></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step"><div class="icon">👤</div><div class="label">Humano</div></div>
+        </div>
+        <div class="grid" style="grid-template-columns:repeat(3,1fr); margin-top:8px;">
+          <div class="card" style="padding:14px 16px;"><p style="font-size:12.5px;"><b style="color:var(--text-0)">Entrada</b> — cliente inicia contato pelo canal escolhido.</p></div>
+          <div class="card" style="padding:14px 16px;"><p style="font-size:12.5px;"><b style="color:var(--text-0)">Identificação da necessidade</b> — IA interpreta a intenção do cliente.</p></div>
+          <div class="card" style="padding:14px 16px;"><p style="font-size:12.5px;"><b style="color:var(--text-0)">Coleta de informações</b> — briefing guiado pela IA.</p></div>
+          <div class="card" style="padding:14px 16px;"><p style="font-size:12.5px;"><b style="color:var(--text-0)">Referência / imagem</b> — recebida direto no chat.</p></div>
+          <div class="card" style="padding:14px 16px;"><p style="font-size:12.5px;"><b style="color:var(--text-0)">Qualificação</b> — a IA organiza e classifica o atendimento.</p></div>
+          <div class="card" style="padding:14px 16px;"><p style="font-size:12.5px;"><b style="color:var(--text-0)">Agendamento</b> — via automação com a agenda.</p></div>
+          <div class="card" style="padding:14px 16px;"><p style="font-size:12.5px;"><b style="color:var(--text-0)">Armazenamento</b> — histórico salvo para consulta futura.</p></div>
+          <div class="card" style="padding:14px 16px;"><p style="font-size:12.5px;"><b style="color:var(--text-0)">Transferência</b> — humano recebe o histórico completo.</p></div>
+          <div class="card" style="padding:14px 16px;"><p style="font-size:12.5px;"><b style="color:var(--text-0)">Acompanhamento</b> — <span class="tag tag-confirmar">a confirmar</span> fluxo pós-atendimento.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 SEGURANÇA -->
+    <section class="slide" data-title="Segurança e controle">
+      <div class="eyebrow">Segurança</div>
+      <h1 class="title">Segurança e controle</h1>
+      <p class="subtitle">Pontos que já são declarados e pontos que precisam de validação antes da operação com dados reais de clientes.</p>
+      <div class="slide-body">
+        <div class="grid" style="grid-template-columns:repeat(2,1fr);">
+          <div class="card"><h3 style="font-size:14px;">Controle de acesso</h3><p style="font-size:12.5px;">Necessita validação/configuração específica junto à Zaia — não documentado publicamente em detalhe.</p></div>
+          <div class="card"><h3 style="font-size:14px;">Proteção de dados de clientes (LGPD)</h3><p style="font-size:12.5px;">Não há documentação pública detalhada sobre certificações de segurança/LGPD. <b style="color:var(--amber)">Necessita validação comercial.</b></p></div>
+          <div class="card"><h3 style="font-size:14px;">Tratamento de imagens enviadas</h3><p style="font-size:12.5px;">Fotos de referência trafegam pelo canal (WhatsApp/Instagram) e pela Zaia — política de armazenamento a confirmar.</p></div>
+          <div class="card"><h3 style="font-size:14px;">Registro das conversas</h3><p style="font-size:12.5px;">Provável, como parte do histórico do agente — nível de detalhe do log não documentado publicamente.</p></div>
+          <div class="card"><h3 style="font-size:14px;">Backups</h3><p style="font-size:12.5px;">Não documentado publicamente. <b style="color:var(--amber)">Necessita confirmação comercial.</b></p></div>
+          <div class="card"><h3 style="font-size:14px;">Transferência para humano</h3><p style="font-size:12.5px;">Funcionalidade declarada pela Zaia, com histórico da conversa preservado.</p></div>
+        </div>
+        <p class="caption">Nenhuma afirmação de conformidade (ex.: certificação LGPD) é feita nesta proposta sem confirmação direta com o fornecedor — o guia de origem não documenta esse nível de detalhe publicamente.</p>
+      </div>
+    </section>
+
+    <!-- 9 CUSTO INICIAL -->
+    <section class="slide" data-title="Custo inicial de implantação">
+      <div class="eyebrow">Investimento inicial</div>
+      <h1 class="title">Custo inicial de implantação</h1>
+      <p class="subtitle">O valor de colocar a solução funcionando — além da assinatura mensal da plataforma.</p>
+      <div class="slide-body">
+        <div class="table-wrap">
+          <table class="dtable">
+            <tr><th>Etapa</th><th>Custo</th></tr>
+            <tr><td>Configuração da solução e do agente de IA</td><td><span class="tag tag-confirmar">a definir</span></td></tr>
+            <tr><td>Integração dos canais (WhatsApp, Instagram, site)</td><td><span class="tag tag-confirmar">a definir</span></td></tr>
+            <tr><td>Estruturação da base de conhecimento (estilos, processo, preços)</td><td><span class="tag tag-confirmar">a definir</span></td></tr>
+            <tr><td>Configuração da jornada de atendimento (briefing, qualificação)</td><td><span class="tag tag-confirmar">a definir</span></td></tr>
+            <tr><td>Configuração das automações (Make/N8N)</td><td><span class="tag tag-confirmar">a definir</span></td></tr>
+            <tr><td>Integração com agenda/CRM</td><td><span class="tag tag-confirmar">a definir</span></td></tr>
+            <tr><td>Testes e homologação</td><td><span class="tag tag-confirmar">a definir</span></td></tr>
+            <tr><td>Treinamento da equipe</td><td><span class="tag tag-confirmar">a definir</span></td></tr>
+            <tr><td>Documentação e publicação (entrada em operação)</td><td><span class="tag tag-confirmar">a definir</span></td></tr>
+            <tr class="total"><td>Total estimado de implantação</td><td><span class="tag tag-confirmar">a definir</span></td></tr>
+          </table>
+        </div>
+        <p class="caption">O guia de referência documenta apenas os preços de assinatura das plataformas — não inclui valores de implantação/configuração. Estes custos de implantação devem ser definidos separadamente e preenchidos aqui antes da apresentação final ao cliente.</p>
+      </div>
+    </section>
+
+    <!-- 10 CUSTO MENSAL -->
+    <section class="slide" data-title="Custo mensal da operação">
+      <div class="eyebrow">Operação mensal</div>
+      <h1 class="title">Custo mensal da operação</h1>
+      <p class="subtitle">Valores de assinatura verificados no guia, mais itens variáveis que dependem do volume real de uso.</p>
+      <div class="slide-body">
+        <div class="table-wrap">
+          <table class="dtable">
+            <tr><th>Item</th><th>Custo mensal</th></tr>
+            <tr><td>Plataforma de IA (Zaia — plano Aceleração)</td><td class="strong">R$ 249,00</td></tr>
+            <tr><td>WhatsApp / API oficial (mensagens de serviço/marketing fora dos créditos da Zaia)</td><td><span class="tag tag-confirmar">variável — a confirmar conforme volume</span></td></tr>
+            <tr><td>Automação (Make ou N8N)</td><td><span class="tag tag-confirmar">a confirmar conforme volume</span></td></tr>
+            <tr><td>Servidor / infraestrutura adicional</td><td class="strong">R$ 0,00 (não necessário nesta fase)</td></tr>
+            <tr><td>Banco de dados / armazenamento</td><td class="strong">Incluído no plano da Zaia</td></tr>
+            <tr><td>Domínio / serviços</td><td><span class="tag tag-confirmar">a confirmar (já existente)</span></td></tr>
+            <tr><td>Monitoramento / backups</td><td><span class="tag tag-confirmar">a confirmar comercialmente</span></td></tr>
+            <tr><td>Outros (excedente de créditos além dos 5.000/mês)</td><td><span class="tag tag-confirmar">variável conforme volume</span></td></tr>
+            <tr class="total"><td>Total mensal estimado (parte fixa confirmada)</td><td class="strong">R$ 249,00 + itens variáveis a confirmar</td></tr>
+          </table>
+        </div>
+        <p class="caption">R$ 249/mês é o valor fixo verificado no guia para o plano único da Zaia, com 5.000 créditos de conversa incluídos. Custos variáveis (WhatsApp, automação, excedente de créditos) dependem do volume real de atendimentos e só podem ser estimados com precisão após o piloto inicial.</p>
+      </div>
+    </section>
+
+    <!-- 11 INVESTIMENTO TOTAL -->
+    <section class="slide" data-title="Investimento total">
+      <div class="eyebrow">Cenários</div>
+      <h1 class="title">Investimento total — três cenários</h1>
+      <p class="subtitle">Implantação inicial + custo mensal, projetados em 12 meses.</p>
+      <div class="slide-body">
+        <div class="scenario-grid">
+          <div class="scenario">
+            <div class="name">Econômico</div>
+            <p style="font-size:12px; color:var(--text-1);">Somente Zaia, agendamento manual (sem automação de agenda nesta fase).</p>
+            <div class="row">Implantação inicial <b>a definir</b></div>
+            <div class="row">Custo mensal <b>R$ 249</b></div>
+            <div class="row">Mensalidades em 12 meses <b>R$ 2.988</b></div>
+            <div class="row">Investimento em 12 meses <b>R$ 2.988 + implantação</b></div>
+          </div>
+          <div class="scenario reco">
+            <div class="name">Recomendado</div>
+            <p style="font-size:12px; color:var(--text-1);">Zaia + automação (Make/N8N) conectando agenda — a jornada completa descrita no fluxo.</p>
+            <div class="row">Implantação inicial <b>a definir</b></div>
+            <div class="row">Custo mensal <b>R$ 249 + automação (a confirmar)</b></div>
+            <div class="row">Mensalidades em 12 meses <b>R$ 2.988 + automação</b></div>
+            <div class="row">Investimento em 12 meses <b>R$ 2.988 + automação + implantação</b></div>
+          </div>
+          <div class="scenario">
+            <div class="name">Crescimento</div>
+            <p style="font-size:12px; color:var(--text-1);">Zaia + automação + camada complementar de fidelização (Kiskadi, módulo Pós-venda).</p>
+            <div class="row">Implantação inicial <b>R$ 399 (Kiskadi) + a definir (Zaia)</b></div>
+            <div class="row">Custo mensal <b>R$ 249 + R$ 179 + R$ 20 = R$ 448</b></div>
+            <div class="row">Mensalidades em 12 meses <b>R$ 5.376</b></div>
+            <div class="row">Investimento em 12 meses <b>R$ 5.376 + R$ 399 + implantação</b></div>
+          </div>
+        </div>
+        <p class="caption">Valores de Kiskadi (R$ 179/mês do módulo Pós-venda + R$ 20/mês de integração + R$ 399 de implementação) são os valores verificados no guia, usados aqui apenas como referência de cenário de crescimento — não fazem parte da recomendação inicial. Os campos "a definir" dependem do escopo real de configuração e devem ser preenchidos antes de apresentar o orçamento final ao cliente.</p>
+      </div>
+    </section>
+
+    <!-- 12 RETORNO E CONCLUSÃO -->
+    <section class="slide" data-title="Retorno e conclusão">
+      <div class="eyebrow">Conclusão</div>
+      <h1 class="title">Retorno esperado e recomendação final</h1>
+      <div class="slide-body">
+        <div class="grid" style="grid-template-columns:repeat(2,1fr); margin-bottom:22px;">
+          <div class="card" style="padding:14px 18px;"><p style="font-size:13px;">Redução de perguntas repetitivas atendidas manualmente</p></div>
+          <div class="card" style="padding:14px 18px;"><p style="font-size:13px;">Atendimento disponível 24 horas por dia, 7 dias por semana</p></div>
+          <div class="card" style="padding:14px 18px;"><p style="font-size:13px;">Resposta mais rápida ao cliente, inclusive fora do expediente</p></div>
+          <div class="card" style="padding:14px 18px;"><p style="font-size:13px;">Pré-qualificação de clientes antes do contato humano</p></div>
+          <div class="card" style="padding:14px 18px;"><p style="font-size:13px;">Briefings e referências organizados automaticamente</p></div>
+          <div class="card" style="padding:14px 18px;"><p style="font-size:13px;">Menos tarefas manuais e repetitivas para a equipe</p></div>
+          <div class="card" style="padding:14px 18px;"><p style="font-size:13px;">Melhor aproveitamento do tempo da equipe de vendas/atendimento</p></div>
+          <div class="card" style="padding:14px 18px;"><p style="font-size:13px;">Estrutura pronta para crescer sem aumentar a operação na mesma proporção</p></div>
+        </div>
+        <p class="pull-quote">A solução recomendada é iniciar com a Zaia e uma arquitetura enxuta, validando o fluxo com clientes reais antes de ampliar integrações e infraestrutura.</p>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="navbar">
+    <button class="nav-btn" id="prevBtn">← Anterior</button>
+    <div class="nav-dots" id="navDots"></div>
+    <div class="kbd-hint"><kbd>←</kbd><kbd>→</kbd> navegar &nbsp; <kbd>Home</kbd><kbd>End</kbd> início/fim</div>
+    <button class="nav-btn" id="nextBtn">Próximo →</button>
+  </div>
+</div>
+
+<div class="menu-overlay" id="menuOverlay"></div>
+<div class="side-menu" id="sideMenu">
+  <h4>Índice da apresentação</h4>
+  <div id="menuList"></div>
+</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var current = 0;
+  document.getElementById('totalNum').textContent = total;
+
+  var stage = document.getElementById('stage');
+  var progressFill = document.getElementById('progressFill');
+  var curNum = document.getElementById('curNum');
+  var prevBtn = document.getElementById('prevBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var navDots = document.getElementById('navDots');
+  var menuList = document.getElementById('menuList');
+
+  slides.forEach(function(s, i){
+    var dot = document.createElement('div');
+    dot.className = 'nav-dot';
+    dot.setAttribute('aria-label', 'Ir para slide ' + (i+1));
+    dot.addEventListener('click', function(){ goTo(i); });
+    navDots.appendChild(dot);
+
+    var item = document.createElement('div');
+    item.className = 'menu-item';
+    item.innerHTML = '<span class="num">' + String(i+1).padStart(2,'0') + '</span><span class="txt">' + (s.getAttribute('data-title') || ('Slide ' + (i+1))) + '</span>';
+    item.addEventListener('click', function(){ goTo(i); closeMenu(); });
+    menuList.appendChild(item);
+  });
+
+  var dots = Array.prototype.slice.call(navDots.children);
+  var menuItems = Array.prototype.slice.call(menuList.children);
+
+  function render(){
+    slides.forEach(function(s, i){
+      s.classList.remove('active','prev');
+      if(i === current) s.classList.add('active');
+      else if(i < current) s.classList.add('prev');
+    });
+    dots.forEach(function(d,i){ d.classList.toggle('active', i===current); });
+    menuItems.forEach(function(m,i){ m.classList.toggle('active', i===current); });
+    curNum.textContent = current + 1;
+    progressFill.style.width = ((current)/(total-1) * 100) + '%';
+    prevBtn.disabled = current === 0;
+    nextBtn.disabled = current === total - 1;
+    slides[current].scrollTop = 0;
+  }
+  function goTo(i){ if(i < 0 || i >= total) return; current = i; render(); }
+
+  prevBtn.addEventListener('click', function(){ goTo(current - 1); });
+  nextBtn.addEventListener('click', function(){ goTo(current + 1); });
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'ArrowRight' || e.key === 'PageDown'){ goTo(current+1); }
+    else if(e.key === 'ArrowLeft' || e.key === 'PageUp'){ goTo(current-1); }
+    else if(e.key === 'Home'){ goTo(0); }
+    else if(e.key === 'End'){ goTo(total-1); }
+    else if(e.key === 'Escape'){ closeMenu(); }
+  });
+
+  var touchStartX = null;
+  stage.addEventListener('touchstart', function(e){ touchStartX = e.touches[0].clientX; }, {passive:true});
+  stage.addEventListener('touchend', function(e){
+    if(touchStartX === null) return;
+    var dx = e.changedTouches[0].clientX - touchStartX;
+    if(Math.abs(dx) > 60){ dx < 0 ? goTo(current+1) : goTo(current-1); }
+    touchStartX = null;
+  }, {passive:true});
+
+  var sideMenu = document.getElementById('sideMenu');
+  var menuOverlay = document.getElementById('menuOverlay');
+  document.getElementById('menuToggle').addEventListener('click', function(){
+    sideMenu.classList.add('open'); menuOverlay.classList.add('open');
+  });
+  function closeMenu(){ sideMenu.classList.remove('open'); menuOverlay.classList.remove('open'); }
+  menuOverlay.addEventListener('click', closeMenu);
+
+  render();
+})();
+</script>
+
+</body>
+</html>
